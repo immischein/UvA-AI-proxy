@@ -28,7 +28,7 @@ import time
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, Generator, Iterable, List, Optional, Union
+from typing import Any, Dict, Generator, List, Optional, Union
 
 import requests
 import uvicorn
@@ -74,12 +74,36 @@ def _content_to_str(content: Union[str, List[Dict[str, Any]]]) -> str:
     Normalise OpenAI message content to a plain string.
     Accepts both the legacy string form and the newer multipart block form:
         [{"type": "text", "text": "..."}, ...]
-    Only "text" blocks are extracted; image/tool blocks are skipped.
+    Strips <system-reminder> blocks injected by Claude Code's runtime.
     """
+    import re as _re
+    _sysreminder_re = _re.compile(r"<system-reminder>.*?</system-reminder>\s*", _re.DOTALL)
+
     if isinstance(content, str):
-        return content
-    parts = [block.get("text", "") for block in content if block.get("type") == "text"]
-    return "".join(parts)
+        return _sysreminder_re.sub("", content).strip()
+    parts = []
+    for block in content:
+        if block.get("type") == "text":
+            cleaned = _sysreminder_re.sub("", block.get("text", "")).strip()
+            if cleaned:
+                parts.append(cleaned)
+    return "\n".join(parts)
+
+
+# Short model aliases → full UvA model IDs
+_MODEL_ALIASES: dict[str, str] = {
+    "sonnet":       "claude-sonnet-4.6",
+    "opus":         "claude-opus-4.6",
+    "haiku":        "claude-haiku-4.5",
+    "claude-sonnet": "claude-sonnet-4.6",
+    "claude-opus":   "claude-opus-4.6",
+    "claude-haiku":  "claude-haiku-4.5",
+}
+
+def _resolve_model(model: Optional[str]) -> str:
+    if not model:
+        return "gpt-4o"
+    return _MODEL_ALIASES.get(model.lower(), model)
 
 
 class Message(BaseModel):
@@ -252,18 +276,11 @@ def _upload_attachments(messages: List[Message], thread_id: str) -> None:
                 print(f"[upload] warning: {filename}: {exc}")
 
 
-def _build_system_prompt(messages: List[Message]) -> tuple[Optional[str], str, List[Message]]:
+def _build_system_prompt(messages: List[Message]) -> tuple[Optional[str], str]:
     """
-    Split messages into (system_prompt, prior_history_text, remaining_user_messages).
-
-    Because UvA's API only accepts user turns (we cannot inject assistant text
-    into the thread), we replay prior conversation turns as context inside the
-    system prompt so the model has full history.
-
-    Returns:
-        system_prompt  – combined system text (original + history block), or None
-        last_user_text – the final user message to actually send
-        skipped        – list of messages we folded into the system prompt
+    Returns (system_prompt, last_user_text).
+    Folds the system message and prior conversation history into a single system
+    prompt, and extracts the final user message to send to UvA.
     """
     system_parts: List[str] = []
     history: List[Message] = []
@@ -339,13 +356,16 @@ def send_message(thread_id: str, text: str, system_prompt: Optional[str],
     return resp
 
 
-def extract_text_from_sse(response: requests.Response) -> List[str]:
+def extract_text_from_sse(response: requests.Response,
+                          messages: Optional[List[Message]] = None) -> tuple[List[str], Optional[str]]:
     """
-    Parse UvA's SSE body into a list of text-delta strings — mirrors uva_chat.py.
-    Returns individual deltas (not joined) so the streaming path can emit them
-    as separate OpenAI chunks.
+    Parse UvA's SSE body.
+    Returns (deltas, actual_model) where actual_model comes from the finish event.
+    Also saves any artifact objects to the CLI's working directory.
     """
     deltas: List[str] = []
+    actual_model: Optional[str] = None
+
     for line in response.text.split("\n"):
         if not line.startswith("data: "):
             continue
@@ -353,9 +373,52 @@ def extract_text_from_sse(response: requests.Response) -> List[str]:
             data = json.loads(line[6:])
         except Exception:
             continue
-        if data.get("type") == "text-delta":
+
+        t = data.get("type")
+
+        if t == "text-delta":
             deltas.append(data.get("delta", ""))
-    return deltas
+
+        elif t == "finish":
+            actual_model = data.get("messageMetadata", {}).get("model")
+
+        elif t == "tool-input-available" and data.get("toolName") == "create_artifact":
+            inp = data.get("input", {})
+            if "title" in inp and "content" in inp:
+                _save_artifact(inp, messages or [])
+
+    return deltas, actual_model
+
+
+def _extract_cwd(messages: List[Message]) -> Path:
+    """
+    Extract the CLI's working directory from Claude Code's injected system-reminders.
+    Looks for 'Primary working directory: /path' in any message content.
+    Falls back to the proxy's own cwd.
+    """
+    _cwd_re = re.compile(r"Primary working directory:\s*(\S+)")
+    for msg in messages:
+        raw = msg.content if isinstance(msg.content, str) else " ".join(
+            b.get("text", "") for b in msg.content if b.get("type") == "text"
+        )
+        m = _cwd_re.search(raw)
+        if m:
+            p = Path(m.group(1))
+            if p.is_dir():
+                return p
+    return Path.cwd()
+
+
+def _save_artifact(item: dict, messages: List[Message]) -> None:
+    """Save a UvA artifact object to the CLI's working directory."""
+    title = item.get("title", "artifact")
+    content = item.get("content", "")
+    artifact_type = item.get("artifactType", "")
+
+    filename = Path(title).name or f"artifact_{int(time.time())}"
+    dest = _extract_cwd(messages) / filename
+    dest.write_text(content, encoding="utf-8")
+    print(f"[artifact] saved {artifact_type} → {dest}")
 
 
 # ── SSE generators ────────────────────────────────────────────────────────────
@@ -453,7 +516,7 @@ async def chat_completions(req: ChatCompletionRequest, http_req: Request):
     if _is_title_request(req):
         title = _make_title(req)
         completion_id = f"chatcmpl-{uuid.uuid4().hex}"
-        model = req.model or "gpt-4o"
+        model = _resolve_model(req.model)
         if req.stream:
             return StreamingResponse(
                 _generate_stream([title], completion_id, model),
@@ -473,7 +536,7 @@ async def chat_completions(req: ChatCompletionRequest, http_req: Request):
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-    model = req.model or "gpt-4o"
+    model = _resolve_model(req.model)
     completion_id = f"chatcmpl-{uuid.uuid4().hex}"
     thread_id, is_new_chat = _get_thread_id(req.messages, req.thread_id)
 
@@ -482,7 +545,8 @@ async def chat_completions(req: ChatCompletionRequest, http_req: Request):
 
     uva_resp = send_message(thread_id, last_user_text, system_prompt, model,
                             is_new_chat=is_new_chat)
-    deltas = extract_text_from_sse(uva_resp)
+    deltas, actual_model = extract_text_from_sse(uva_resp, req.messages)
+    model = actual_model or model  # use what UvA actually ran
 
     # ── Streaming ──────────────────────────────────────────────────────────────
     if req.stream:
