@@ -104,7 +104,7 @@ curl http://localhost:8000/v1/chat/completions \
   }'
 ```
 
-### Example: OpenWebUI / LibreChat
+### Example: Open Claude
 
 Set the **OpenAI base URL** to `http://<this-host>:8000/v1` and use any string as the API key.
 
@@ -116,4 +116,4 @@ Set the **OpenAI base URL** to `http://<this-host>:8000/v1` and use any string a
 
 ## License
 
-MIT
+GPLv3
