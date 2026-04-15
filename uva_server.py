@@ -45,7 +45,7 @@ SESSION_TOKEN = os.environ.get("SESSION_TOKEN")
 if not SESSION_TOKEN:
     raise RuntimeError("SESSION_TOKEN environment variable is required")
 
-_default_models = "gpt-5.1,gpt-4.1,gpt-4o,o3,o4-mini,claude-sonnet-4.6,claude-opus-4.6,claude-haiku-4.5"
+_default_models = "gpt-5.1,claude-haiku-4.5,claude-sonnet-4.6,gpt-4.1,gpt-4o,gpt-5,gpt-5-mini,gpt-5-nano,gpt-oss-120b,mistral-large"
 KNOWN_MODELS = os.environ.get("KNOWN_MODELS", _default_models).split(",")
 
 HOST = os.environ.get("HOST", "0.0.0.0")
