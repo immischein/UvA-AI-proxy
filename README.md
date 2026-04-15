@@ -7,7 +7,7 @@ An OpenAI-compatible API proxy for [aichatacc.uva.nl](https://aichatacc.uva.nl) 
 - **OpenAI-compatible endpoints** — `GET /v1/models` and `POST /v1/chat/completions`
 - **Streaming & non-streaming** responses
 - **Multi-turn conversation** support (history is replayed via the system prompt)
-- **Multiple models** — GPT-4.1, GPT-4o, GPT-5.1, o3, o4-mini, Claude Sonnet/Haiku, and more
+- **Multiple models** — GPT-4.1, GPT-4o, GPT-5.1, o3-mini, Claude Sonnet/Haiku, and more
 - **CORS enabled** — browser-based tools can connect directly
 
 ## Requirements
