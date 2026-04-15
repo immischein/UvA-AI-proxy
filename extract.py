@@ -1,5 +1,5 @@
 """
-extract.py — Extract the __Secure-next-auth.session-token from aichatacc.uva.nl
+extract.py — Extract the __Secure-next-auth.session-token from aichat.uva.nl
 
 Usage:
     python extract.py                  # opens a visible browser, you log in manually
@@ -59,7 +59,7 @@ def extract_token(headless: bool = False, output: str | None = None) -> str:
         if not headless:
             print(
                 "\n[ACTION REQUIRED]\n"
-                "A browser window has opened. Please log in to aichatacc.uva.nl.\n"
+                "A browser window has opened. Please log in to aichat.uva.nl.\n"
                 "The script will automatically continue once the session cookie appears.\n"
             )
 
@@ -85,7 +85,7 @@ def extract_token(headless: bool = False, output: str | None = None) -> str:
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Extract the NextAuth session token from aichatacc.uva.nl"
+        description="Extract the NextAuth session token from aichat.uva.nl"
     )
     parser.add_argument(
         "--headless",
