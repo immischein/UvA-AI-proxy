@@ -1,6 +1,6 @@
 # UvA AI Proxy
 
-An OpenAI-compatible API proxy for [aichatacc.uva.nl](https://aichatacc.uva.nl) — the University of Amsterdam's AI chat platform. It lets you connect any tool that speaks the OpenAI API (OpenWebUI, LibreChat, Cursor, etc.) to UvA's AI models using your existing UvA session.
+An OpenAI-compatible API proxy for [aichat.uva.nl](https://aichat.uva.nl) — the University of Amsterdam's AI chat platform. It lets you connect any tool that speaks the OpenAI API (OpenWebUI, LibreChat, Cursor, etc.) to UvA's AI models using your existing UvA session.
 
 ## Features
 
@@ -78,7 +78,7 @@ The server starts on `http://0.0.0.0:8000` by default.
 | `SESSION_TOKEN` | *(required)* | Your UvA NextAuth session token |
 | `HOST` | `0.0.0.0` | Host to bind to |
 | `PORT` | `8000` | Port to listen on |
-| `UVA_BASE_URL` | `https://aichatacc.uva.nl` | UvA API base URL |
+| `UVA_BASE_URL` | `https://aichat.uva.nl` | UvA API base URL |
 | `KNOWN_MODELS` | *(see below)* | Comma-separated list of models to expose |
 
 **Default models:** `gpt-5.1, gpt-4.1, gpt-4o, o3, o4-mini, claude-sonnet-4.6, claude-opus-4.6, claude-haiku-4.5`
