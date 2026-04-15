@@ -24,7 +24,7 @@ except ImportError:
         "Run:  pip install playwright && playwright install chromium"
     )
 
-TARGET_URL = "https://aichatacc.uva.nl"
+TARGET_URL = "https://aichat.uva.nl"
 COOKIE_NAME = "__Secure-next-auth.session-token"
 # How long (ms) to wait for the cookie to appear after the page loads
 COOKIE_WAIT_MS = 120_000  # 2 minutes — plenty of time for SSO / manual login

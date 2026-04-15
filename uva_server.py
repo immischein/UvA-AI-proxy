@@ -34,7 +34,7 @@ from pydantic import BaseModel
 
 # ── Config (all values from environment variables) ────────────────────────────
 
-BASE_URL = os.environ.get("UVA_BASE_URL", "https://aichatacc.uva.nl")
+BASE_URL = os.environ.get("UVA_BASE_URL", "https://aichat.uva.nl")
 
 SESSION_TOKEN = os.environ.get("SESSION_TOKEN")
 if not SESSION_TOKEN:
