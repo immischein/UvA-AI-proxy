@@ -25,7 +25,7 @@ An OpenAI-compatible API proxy for [aichat.uva.nl](https://aichat.uva.nl) — th
 ```bash
 python -m venv .venv
 source .venv/bin/activate      # Windows: .venv\Scripts\activate
-pip install fastapi uvicorn requests python-multipart
+pip install -r requirements.txt
 ```
 
 ## Getting a Session Token
