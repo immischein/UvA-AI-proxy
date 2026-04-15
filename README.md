@@ -25,7 +25,7 @@ source .venv/bin/activate      # Windows: .venv\Scripts\activate
 pip install fastapi uvicorn requests
 ```
 
-## Getting a S** (install inside the same venv):ion Token
+## Extracting Session Token
 
 Use the included `extract.py` script to obtain your `__Secure-next-auth.session-token` from the UvA AI chat site.
 
