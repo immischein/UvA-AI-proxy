@@ -16,6 +16,7 @@ import argparse
 import os
 import sys
 from pathlib import Path
+from typing import Any
 
 import requests
 
@@ -31,8 +32,8 @@ ALLOWED_EXTENSIONS = {".txt", ".pdf", ".png", ".jpg", ".jpeg", ".csv", ".json"}
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 
-def _headers() -> dict:
-    h = {}
+def _headers() -> dict[str, Any]:
+    h: dict[Any, Any] = {}
     if API_TOKEN:
         h["Authorization"] = f"Bearer {API_TOKEN}"
     return h

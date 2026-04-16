@@ -17,7 +17,7 @@ import sys
 from pathlib import Path
 
 try:
-    from playwright.sync_api import sync_playwright, TimeoutError as PWTimeout
+    from playwright.sync_api import sync_playwright, BrowserContext
 except ImportError:
     sys.exit(
         "Playwright is not installed.\n"
@@ -30,7 +30,7 @@ COOKIE_NAME = "__Secure-next-auth.session-token"
 COOKIE_WAIT_MS = 120_000  # 2 minutes — plenty of time for SSO / manual login
 
 
-def wait_for_cookie(context, name: str, timeout_ms: int) -> str | None:
+def wait_for_cookie(context: BrowserContext, name: str, timeout_ms: int) -> str | None:
     """
     Poll the browser context's cookies until `name` appears or timeout is reached.
     Returns the cookie value, or None on timeout.
@@ -41,8 +41,8 @@ def wait_for_cookie(context, name: str, timeout_ms: int) -> str | None:
     while time.monotonic() < deadline:
         cookies = context.cookies(TARGET_URL)
         for c in cookies:
-            if c["name"] == name:
-                return c["value"]
+            if c.get("name") == name:
+                return c.get("value")
         time.sleep(1)
     return None
 

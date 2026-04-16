@@ -81,7 +81,7 @@ def _content_to_str(content: Union[str, List[Dict[str, Any]]]) -> str:
 
     if isinstance(content, str):
         return _sysreminder_re.sub("", content).strip()
-    parts = []
+    parts: list[str] = []
     for block in content:
         if block.get("type") == "text":
             cleaned = _sysreminder_re.sub("", block.get("text", "")).strip()
@@ -140,7 +140,7 @@ def _random_id(length: int = 16) -> str:
     return "".join(random.choices(string.ascii_letters + string.digits, k=length))
 
 
-def _uva_headers() -> dict:
+def _uva_headers() -> dict[str, str]:
     return {
         "Cookie": f"__Secure-next-auth.session-token={SESSION_TOKEN}",
         "Content-Type": "application/json",
@@ -196,7 +196,7 @@ def _get_thread_id(messages: List[Message], explicit: Optional[str]) -> tuple[st
     return thread_id, True
 
 
-def _upload_file_to_uva(path: Path, thread_id: str, headers: dict) -> None:
+def _upload_file_to_uva(path: Path, thread_id: str, headers: dict[str, str]) -> None:
     media_type = mimetypes.guess_type(path.name)[0] or "application/octet-stream"
     raw = path.read_bytes()
     resp = requests.post(
@@ -326,8 +326,8 @@ def _build_system_prompt(messages: List[Message]) -> tuple[Optional[str], str]:
 
 
 def _uva_payload(thread_id: str, text: str, *, is_new_chat: bool,
-                 system_prompt: Optional[str], model: Optional[str]) -> dict:
-    overrides: dict = {}
+                 system_prompt: Optional[str], model: Optional[str]) -> dict[str, Any]:
+    overrides: dict[str, Any] = {}
     if system_prompt:
         overrides["systemPrompt"] = system_prompt
     if model:
@@ -423,7 +423,7 @@ def _extract_cwd(messages: List[Message]) -> Path:
     return Path.cwd()
 
 
-def _save_artifact(item: dict, messages: List[Message]) -> None:
+def _save_artifact(item: dict[str, Any], messages: List[Message]) -> None:
     """Save a UvA artifact object to the CLI's working directory."""
     title = item.get("title", "artifact")
     content = item.get("content", "")
@@ -440,7 +440,7 @@ def _save_artifact(item: dict, messages: List[Message]) -> None:
 
 def _openai_chunk(completion_id: str, model: str, delta_content: str,
                   finish_reason: Optional[str] = None) -> str:
-    chunk = {
+    chunk: dict[str, Any] = {
         "id": completion_id,
         "object": "chat.completion.chunk",
         "created": int(time.time()),
@@ -464,7 +464,7 @@ def _generate_stream(deltas: List[str], completion_id: str,
     so we replay the deltas as individual chunks.
     """
     # First chunk: role announcement (OpenAI convention)
-    first = {
+    first: dict[str, Any] = {
         "id": completion_id,
         "object": "chat.completion.chunk",
         "created": int(time.time()),
@@ -486,9 +486,9 @@ def _generate_stream(deltas: List[str], completion_id: str,
 
 @app.get("/v1/models")
 @app.get("/models")
-def list_models():
+def list_models() -> dict[str, Any]:
     now = int(time.time())
-    data = [
+    data: list[dict[str, Any]] = [
         {
             "id": m,
             "object": "model",
@@ -502,7 +502,7 @@ def list_models():
 
 @app.get("/v1/models/{model_id}")
 @app.get("/models/{model_id}")
-def get_model(model_id: str):
+def get_model(model_id: str) -> dict[str, str|int]:
     if model_id not in KNOWN_MODELS:
         raise HTTPException(status_code=404, detail="Model not found")
     return {"id": model_id, "object": "model", "created": int(time.time()), "owned_by": "uva"}
@@ -605,7 +605,7 @@ async def chat_completions(req: ChatCompletionRequest, http_req: Request):
 async def upload_file(
     file: UploadFile = File(...),
     chat_thread_id: Optional[str] = None,
-):
+) -> dict[str, Any]:
     """
     Upload a file to UvA's document API.
     Returns the thread_id (use it in subsequent /v1/chat/completions calls)
@@ -632,7 +632,7 @@ async def upload_file(
         )
 
     # Parse ndjson — each non-empty line is a JSON object
-    lines = []
+    lines: list[Any] = []
     for line in resp.text.splitlines():
         line = line.strip()
         if not line:
@@ -661,8 +661,8 @@ def download_file(filename: str):
 
 
 @app.get("/files")
-def list_files():
-    files = [
+def list_files() -> dict[str, Any]:
+    files: list[dict[str, Any]] = [
         {"filename": p.name, "size": p.stat().st_size, "download_url": f"/download/{p.name}"}
         for p in sorted(UPLOAD_DIR.iterdir())
         if p.is_file()
@@ -674,7 +674,7 @@ def list_files():
 
 
 @app.get("/health")
-def health():
+def health() -> dict[str, str|list[str]]:
     return {"status": "ok", "models": KNOWN_MODELS}
 
 
