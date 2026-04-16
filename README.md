@@ -18,7 +18,7 @@ An OpenAI-compatible API proxy for [aichat.uva.nl](https://aichat.uva.nl) — th
 ## Requirements
 
 - Python 3.10+
-- A valid UvA session token (see [Getting a Session Token](#getting-a-session-token))
+- An UvA account (see [Getting a Session Token](#getting-a-session-token))
 
 ## Installation
 
