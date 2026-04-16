@@ -93,9 +93,9 @@ curl http://localhost:8000/v1/chat/completions \
   }'
 ```
 
-### Example: Claude Code CLI (via free-claude-code)
+### Example: Claude Code CLI (via openclaude)
 
-Set the base URL to `http://localhost:8000` in your free-claude-code config. Then use it normally — file attachments with `@file.pdf` are uploaded automatically, and any code/document artifacts the model generates are saved directly to your working directory.
+Set the base URL to `http://localhost:8000` in your openclaude config. Then use it normally — file attachments with `@file.pdf` are uploaded automatically, and any code/document artifacts the model generates are saved directly to your working directory.
 
 ## File Uploads
 
