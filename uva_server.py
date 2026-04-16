@@ -276,6 +276,13 @@ def _upload_attachments(messages: List[Message], thread_id: str) -> None:
                 print(f"[upload] warning: {filename}: {exc}")
 
 
+_ARTIFACT_INSTRUCTION = (
+    "Whenever you produce a file — code, scripts, documents, data, configurations, "
+    "or any other written output meant to be saved — always use the artifact creation "
+    "feature (create_artifact) so the file is automatically downloaded to the user's machine."
+)
+
+
 def _build_system_prompt(messages: List[Message]) -> tuple[Optional[str], str]:
     """
     Returns (system_prompt, last_user_text).
@@ -307,6 +314,7 @@ def _build_system_prompt(messages: List[Message]) -> tuple[Optional[str], str]:
         lines.append("=== End of history ===")
         system_parts.append("\n".join(lines))
 
+    system_parts.append(_ARTIFACT_INSTRUCTION)
     combined_system = "\n\n".join(system_parts) if system_parts else None
     return combined_system, last_user_text
 
