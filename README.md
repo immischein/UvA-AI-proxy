@@ -76,7 +76,7 @@ The server starts on `http://0.0.0.0:8000` by default.
 | `KNOWN_MODELS` | *(see below)* | Comma-separated list of models to expose |
 | `UPLOAD_DIR` | `uploads/` | Directory for locally stored uploaded files |
 
-**Default models:** `gpt-5.1, gpt-4.1, gpt-4o, o3, o4-mini, claude-sonnet-4.6, claude-opus-4.6, claude-haiku-4.5`
+**Default models:** `gpt-5.1, claude-haiku-4.5, claude-sonnet-4.6, gpt-4.1, gpt-4o, gpt-5, gpt-5-mini, gpt-5-nano, gpt-oss-120b, mistral-large`
 
 ## Connecting a Client
 
