@@ -24,7 +24,7 @@ An OpenAI-compatible API proxy for [aichat.uva.nl](https://aichat.uva.nl) — th
 
 ```bash
 git clone https://github.com/immischein/UvA-AI-proxy.git
-cd UvA-AI-proxy
+cd UvA-AI-proxy/
 python3 -m venv .venv
 source .venv/bin/activate      # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
