@@ -28,6 +28,7 @@ cd UvA-AI-proxy/
 python3 -m venv .venv
 source .venv/bin/activate      # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
+playwright install chromium
 ```
 ## Quickstart
 Start the session token extractor (opens browser window) and start the server.
@@ -40,9 +41,6 @@ bash ./start.sh
 Use the included `extract.py` script to obtain your `__Secure-next-auth.session-token` from the UvA AI chat site.
 
 ```bash
-pip install playwright
-playwright install chromium
-
 # Opens a visible browser — log in manually, token is printed automatically
 python extract.py
 
