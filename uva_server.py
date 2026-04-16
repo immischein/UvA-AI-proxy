@@ -93,16 +93,22 @@ def _content_to_str(content: Union[str, List[Dict[str, Any]]]) -> str:
 # Short model aliases → full UvA model IDs
 _MODEL_ALIASES: dict[str, str] = {
     "sonnet":       "claude-sonnet-4.6",
-    "opus":         "claude-opus-4.6",
     "haiku":        "claude-haiku-4.5",
     "claude-sonnet": "claude-sonnet-4.6",
-    "claude-opus":   "claude-opus-4.6",
     "claude-haiku":  "claude-haiku-4.5",
+    "gpt":           "gpt-5.1",
+    "mistral":      "mistral-large",
+    "gpt-oss":       "gpt-oss-120b",
+    "oss":           "gpt-oss-120b",
+    "gpt-mini":      "gpt-5-mini",
+    "gpt-nano":      "gpt-5-nano",
+    "mini":           "gpt-5-mini",
+    "nano":           "gpt-5-nano",
 }
 
 def _resolve_model(model: Optional[str]) -> str:
     if not model:
-        return "gpt-4o"
+        return "gpt-5.1"                      # default model if none specified; default in UvA's UI
     return _MODEL_ALIASES.get(model.lower(), model)
 
 
