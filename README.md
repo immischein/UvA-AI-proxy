@@ -1,6 +1,6 @@
 # UvA AI Proxy
 
-An OpenAI-compatible API proxy for [aichat.uva.nl](https://aichat.uva.nl) — the University of Amsterdam's AI chat platform. It lets you connect any tool that speaks the OpenAI API (OpenWebUI, LibreChat, Claude Code CLI, Cursor, etc.) to UvA's AI models using your existing UvA session.
+An OpenAI-compatible API proxy for [aichat.uva.nl](https://aichat.uva.nl) — the University of Amsterdam's AI chat platform. It lets you connect any tool that speaks the OpenAI API (OpenWebUI, LibreChat, OpenClaude, CLI, Cursor, etc.) to UvA's AI models using your existing UvA session.
 
 ## Features
 
@@ -9,9 +9,9 @@ An OpenAI-compatible API proxy for [aichat.uva.nl](https://aichat.uva.nl) — th
 - **Persistent conversation threads** — follow-up messages continue in the same UvA chat instead of opening a new one
 - **Model alias resolution** — short names like `sonnet`, `opus`, `haiku` are mapped to full UvA model IDs automatically
 - **Actual model reporting** — the response reflects the model UvA actually ran, not just what was requested
-- **File uploads** — attach files with `@file.pdf` in Claude Code; they are automatically uploaded to UvA and included in the conversation context
+- **File uploads** — attach files with `@file.pdf` in OpenClaude; they are automatically uploaded to UvA and included in the conversation context
 - **Artifact saving** — when UvA generates a code file or document, it is automatically saved to your working directory
-- **Title-request interception** — Claude Code's background title-generation requests are answered locally so they don't create extra UvA chats
+- **Title-request interception** — OpenClaude's background title-generation requests are answered locally so they don't create extra UvA chats
 - **Multiple models** — All models that are available on the UvA AI Chat (as of now: GPT-5.1, Claude Haiku 4.5, Claude Sonnet 4.6, GPT-4.1, GPT-4o, GPT-5, GPT-5-mini, GPT-5-nano, GPT-OSS-120b, Mistral Large)
 - **CORS enabled** — browser-based tools can connect directly
 
@@ -104,7 +104,7 @@ Set the base URL to `http://localhost:8000` in your openclaude config. Then use 
 
 ## File Uploads
 
-### From Claude Code CLI
+### From OpenClaude CLI
 
 Just reference a file with `@`:
 
