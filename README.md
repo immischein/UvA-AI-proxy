@@ -141,7 +141,7 @@ When the model generates a file (e.g. you ask it to *"write a helloworld.py"*), 
 
 ## Notes
 
-- `temperature` and `max_tokens` are accepted but ignored — UvA's API does not expose these parameters.
+- `temperature` and `max_tokens` are accepted but ignored — setting the temperature is technically possible, but not implemented.
 - Conversation thread state is kept in memory — restarting the server starts fresh threads.
 - Multi-turn history is injected into the system prompt since UvA's API only accepts single user turns.
 
