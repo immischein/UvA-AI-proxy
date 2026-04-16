@@ -27,6 +27,11 @@ python -m venv .venv
 source .venv/bin/activate      # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 ```
+## Quickstart
+Start the Session token extractor (opens browser window) and start the server.
+```bash
+bash start.sh
+```
 
 ## Getting a Session Token
 
