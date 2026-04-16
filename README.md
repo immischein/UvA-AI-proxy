@@ -7,7 +7,7 @@ An OpenAI-compatible API proxy for [aichat.uva.nl](https://aichat.uva.nl) — th
 - **OpenAI-compatible endpoints** — `GET /v1/models` and `POST /v1/chat/completions`
 - **Streaming & non-streaming** responses
 - **Persistent conversation threads** — follow-up messages continue in the same UvA chat instead of opening a new one
-- **Model alias resolution** — short names like `sonnet`, `opus`, `haiku` are mapped to full UvA model IDs automatically
+- **Model alias resolution** — short names like `sonnet` and `haiku` are mapped to full UvA model IDs automatically
 - **Actual model reporting** — the response reflects the model UvA actually ran, not just what was requested
 - **File uploads** — attach files with `@file.pdf` in OpenClaude; they are automatically uploaded to UvA and included in the conversation context
 - **Artifact saving** — when UvA generates a code file or document, it is automatically saved to your working directory
