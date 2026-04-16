@@ -30,7 +30,7 @@ pip install -r requirements.txt
 ## Quickstart
 Start the session token extractor (opens browser window) and start the server.
 ```bash
-bash start.sh
+bash ./start.sh
 ```
 
 ## Getting a Session Token
