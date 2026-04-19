@@ -147,6 +147,18 @@ When the model generates a file (e.g. you ask it to *"write a helloworld.py"*), 
 - Conversation thread state is kept in memory — restarting the server starts fresh threads.
 - Multi-turn history is injected into the system prompt since UvA's API only accepts single user turns.
 
+## Money Counter
+
+To see how much money you saved using UvA AI, compared to online available prices, add the following to your statusline.sh : 
+```#!/usr/bin/env bash                                                                                                                                
+                                                                   
+  uva_result=$(curl -sf --max-time 1 http://localhost:8000/savings 2>/dev/null)
+  saved=$(echo "$uva_result" | jq -r '.total_saved_eur // empty' 2>/dev/null)                                                                        
+  if [ -n "$saved" ]; then                                                                                                                           
+      echo "You saved €$(printf '%.2f' "$saved") using UvA AI"                                                                                       
+  fi                                                                                                                                                 
+```
+
 ## License
 
 GPLv3
