@@ -158,6 +158,7 @@ To see how much money you saved using UvA AI, compared to online available price
       echo "You saved €$(printf '%.2f' "$saved") using UvA AI"                                                                                       
   fi                                                                                                                                                 
 ```
+Please note that the savings are an estimate and should thus be taken with a grain of salt.
 
 ## License
 
