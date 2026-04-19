@@ -159,6 +159,7 @@ To see how much money you saved using UvA AI, compared to online available price
   fi                                                                                                                                                 
 ```
 Please note that the savings are an estimate and should thus be taken with a grain of salt.
+The Money Counter data is also accessible as JSON at `http://localhost:8000/savings`
 
 ## License
 
