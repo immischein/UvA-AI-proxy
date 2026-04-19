@@ -54,6 +54,62 @@ PORT = int(os.environ.get("PORT", "8000"))
 UPLOAD_DIR = Path(os.environ.get("UPLOAD_DIR", "uploads"))
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
+USAGE_FILE = Path(os.environ.get("USAGE_FILE", "usage_stats.json"))
+
+# ── Pricing table (USD per 1M tokens) ────────────────────────────────────────
+# Input / output prices from public API pricing pages.
+# Used only for the /savings endpoint; UvA access is free to the user.
+_PRICING: dict[str, tuple[float, float]] = {
+    # model-id          (input $/MTok, output $/MTok)
+    "claude-sonnet-4.6":  (3.00,  15.00),
+    "claude-opus-4.6":    (5.00,  25.00),
+    "claude-haiku-4.5":   (1.00,   5.00),
+    "gpt-4o":             (2.50,  10.00),
+    "gpt-4.1":            (2.00,   8.00),
+    "gpt-5":              (1.25,  10.00),
+    "gpt-5.1":            (1.25,  10.00),
+    "gpt-5-mini":         (0.25,   2.00),
+    "gpt-5-nano":         (0.05,   0.40),
+    "gpt-oss-120b":       (0.50,   0.50),  # avg. via OpenRouter/DeepInfra
+    "mistral-large":      (0.50,   1.50),
+}
+_PRICING_FALLBACK = (2.00, 8.00)  # mid-range default for unknown models
+EUR_PER_USD = 0.88  # fixed exchange rate — update as needed
+
+
+def _tokens_from_words(words: int) -> int:
+    return max(1, int(words * 1.35))  # rough word → token conversion
+
+
+# ── Usage tracking ────────────────────────────────────────────────────────────
+
+def _load_usage() -> dict[str, dict[str, int]]:
+    if USAGE_FILE.exists():
+        try:
+            return json.loads(USAGE_FILE.read_text())
+        except Exception:
+            pass
+    return {}
+
+
+def _save_usage(stats: dict[str, dict[str, int]]) -> None:
+    try:
+        USAGE_FILE.write_text(json.dumps(stats, indent=2))
+    except Exception as exc:
+        print(f"[usage] warning: could not save stats: {exc}")
+
+
+_usage_stats: dict[str, dict[str, int]] = _load_usage()
+
+
+def _record_usage(model: str, prompt_tokens: int, completion_tokens: int) -> None:
+    entry = _usage_stats.setdefault(model, {"prompt_tokens": 0, "completion_tokens": 0, "requests": 0})
+    entry["prompt_tokens"] += prompt_tokens
+    entry["completion_tokens"] += completion_tokens
+    entry["requests"] += 1
+    _save_usage(_usage_stats)
+
+
 # ── FastAPI app ───────────────────────────────────────────────────────────────
 
 app = FastAPI(title="UvA AI Chat – OpenAI proxy", version="1.0.0")
@@ -564,6 +620,11 @@ async def chat_completions(req: ChatCompletionRequest, http_req: Request):
 
     # ── Streaming ──────────────────────────────────────────────────────────────
     if req.stream:
+        _record_usage(
+            model,
+            _tokens_from_words(sum(len(m.text.split()) for m in req.messages)),
+            _tokens_from_words(len("".join(deltas).split())),
+        )
         return StreamingResponse(
             _generate_stream(deltas, completion_id, model),
             media_type="text/event-stream",
@@ -575,8 +636,9 @@ async def chat_completions(req: ChatCompletionRequest, http_req: Request):
 
     # ── Non-streaming ──────────────────────────────────────────────────────────
     full_text = "".join(deltas).strip()
-    prompt_tokens = sum(len(m.text.split()) for m in req.messages)
-    completion_tokens = len(full_text.split())
+    prompt_tokens = _tokens_from_words(sum(len(m.text.split()) for m in req.messages))
+    completion_tokens = _tokens_from_words(len(full_text.split()))
+    _record_usage(model, prompt_tokens, completion_tokens)
 
     return JSONResponse({
         "id": completion_id,
@@ -668,6 +730,53 @@ def list_files() -> dict[str, Any]:
         if p.is_file()
     ]
     return {"files": files}
+
+
+# ── Savings tracker ───────────────────────────────────────────────────────────
+
+
+@app.get("/savings")
+def savings() -> dict[str, Any]:
+    """
+    Returns how much money you would have spent if you'd used each model's
+    commercial API instead of UvA's free portal.
+    """
+    breakdown: list[dict[str, Any]] = []
+    total_cost = 0.0
+    total_requests = 0
+    total_prompt_tokens = 0
+    total_completion_tokens = 0
+
+    for model, counts in _usage_stats.items():
+        p_tok = counts.get("prompt_tokens", 0)
+        c_tok = counts.get("completion_tokens", 0)
+        reqs  = counts.get("requests", 0)
+        in_price, out_price = _PRICING.get(model, _PRICING_FALLBACK)
+        cost = (p_tok * in_price + c_tok * out_price) / 1_000_000
+        total_cost += cost
+        total_requests += reqs
+        total_prompt_tokens += p_tok
+        total_completion_tokens += c_tok
+        breakdown.append({
+            "model": model,
+            "requests": reqs,
+            "prompt_tokens": p_tok,
+            "completion_tokens": c_tok,
+            "estimated_cost_usd": round(cost, 4),
+            "pricing_usd_per_mtok": {"input": in_price, "output": out_price},
+        })
+
+    breakdown.sort(key=lambda x: x["estimated_cost_usd"], reverse=True)
+
+    return {
+        "total_saved_usd": round(total_cost, 4),
+        "total_saved_eur": round(total_cost * EUR_PER_USD, 4),
+        "total_requests": total_requests,
+        "total_prompt_tokens": total_prompt_tokens,
+        "total_completion_tokens": total_completion_tokens,
+        "note": "Token counts are estimated (~1.35 tokens/word). Costs reflect public API pricing.",
+        "breakdown_by_model": breakdown,
+    }
 
 
 # ── Health check ──────────────────────────────────────────────────────────────
