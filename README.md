@@ -148,8 +148,10 @@ When the model generates a file (e.g. you ask it to *"write a helloworld.py"*), 
 - Multi-turn history is injected into the system prompt since UvA's API only accepts single user turns.
 
 ## Money Counter
+To see how much money you saved using UvA AI,compared to online available prices.
 
-To see how much money you saved using UvA AI, compared to online available prices, add the following to your statusline.sh : 
+The Money Counter data is also accessible as JSON at `http://localhost:8000/savings`
+Alternatively you can add the following lines to the openclaude cli statusline.sh. : 
 ```#!/usr/bin/env bash                                                                                                                                
                                                                    
   uva_result=$(curl -sf --max-time 1 http://localhost:8000/savings 2>/dev/null)
@@ -158,9 +160,13 @@ To see how much money you saved using UvA AI, compared to online available price
       echo "You saved €$(printf '%.2f' "$saved") using UvA AI"                                                                                       
   fi                                                                                                                                                 
 ```
-Please note that the savings are an estimate and should thus be taken with a grain of salt.
 
-The Money Counter data is also accessible as JSON at `http://localhost:8000/savings`
+More information on how to add parameters to your statusline can be found in the official documentation of Anthropic, under "Manually configure a status line".
+
+. 
+`https://code.claude.com/docs/en/statusline`
+
+Please note that the savings are an estimate and should thus be taken with a grain of salt.
 
 ## License
 
