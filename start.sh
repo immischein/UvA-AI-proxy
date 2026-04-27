@@ -7,17 +7,21 @@ TOKEN_FILE="$SCRIPT_DIR/.session_token"
 echo "=== Step 1: handling session token ==="
 
 if [[ -f "$TOKEN_FILE" ]]; then
-    echo "Found existing session token."
-    read -p "Do you want to use the stored token? (y/n) " -n 1 -r
-    echo
-    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-        echo "Generating a new session token..."
-        python "$SCRIPT_DIR/extract.py" --output "$TOKEN_FILE"
+    SAVED_TOKEN="$(cat "$TOKEN_FILE")"
+    if [[ -n "$SAVED_TOKEN" ]]; then
+        echo "Found existing session token. Validating…"
+        if python "$SCRIPT_DIR/extract.py" --validate "$SAVED_TOKEN" 2>/dev/null; then
+            echo "Saved token is valid — using it automatically."
+        else
+            echo "Saved token is invalid or expired. Extracting a new one…"
+            python "$SCRIPT_DIR/extract.py" --output "$TOKEN_FILE"
+        fi
     else
-        echo "Using stored token."
+        echo "Token file is empty. Extracting a new session token…"
+        python "$SCRIPT_DIR/extract.py" --output "$TOKEN_FILE"
     fi
 else
-    echo "No stored token found. Extracting a new session token..."
+    echo "No stored token found. Extracting a new session token…"
     python "$SCRIPT_DIR/extract.py" --output "$TOKEN_FILE"
 fi
 
