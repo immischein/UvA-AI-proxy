@@ -214,6 +214,103 @@ def _ext_for(media_type: str) -> str:
     }.get(media_type, "bin")
 
 
+# MIME types that UvA's upload endpoint accepts natively.
+_ACCEPTED_MIME_TYPES: frozenset[str] = frozenset({
+    "text/plain",
+    "application/pdf",
+    "image/png",
+    "image/jpeg",
+    "image/gif",
+    "image/webp",
+    # MS Office
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "application/vnd.ms-excel",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "application/vnd.ms-powerpoint",
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+})
+
+# Extensions that are text-based even when mimetypes guesses wrong.
+_TEXT_EXTENSIONS: frozenset[str] = frozenset({
+    ".py", ".js", ".ts", ".jsx", ".tsx", ".mjs", ".cjs",
+    ".c", ".h", ".cpp", ".cc", ".cxx", ".hpp",
+    ".java", ".kt", ".kts", ".scala",
+    ".go", ".rs", ".rb", ".php", ".swift", ".cs", ".fs",
+    ".sh", ".bash", ".zsh", ".fish", ".ps1", ".bat", ".cmd",
+    ".json", ".jsonc", ".json5",
+    ".yaml", ".yml",
+    ".toml", ".ini", ".cfg", ".conf", ".env",
+    ".xml", ".html", ".htm", ".xhtml", ".svg",
+    ".css", ".scss", ".sass", ".less",
+    ".md", ".mdx", ".rst", ".txt", ".tex",
+    ".sql", ".graphql", ".gql",
+    ".r", ".rmd", ".jl", ".lua", ".pl", ".pm",
+    ".dockerfile", ".makefile", ".mk",
+    ".gitignore", ".gitattributes", ".editorconfig",
+    ".lock",  # package-lock.json, Cargo.lock, etc.
+    ".log",
+})
+
+
+def _coerce_to_accepted(
+    raw: bytes, filename: str, media_type: str
+) -> tuple[bytes, str, str]:
+    """
+    Convert *any* file to a format accepted by UvA's upload endpoint.
+
+    Returns (new_bytes, new_filename, new_media_type).
+
+    Strategy
+    --------
+    1. Already accepted  → return as-is.
+    2. Text-based file   → wrap in a .txt with a header showing the original
+                           filename so the model knows what it is looking at.
+    3. Binary file       → produce a hex dump as .txt so the model can still
+                           inspect the content (useful for small binaries).
+    """
+    if media_type in _ACCEPTED_MIME_TYPES:
+        return raw, filename, media_type
+
+    stem = Path(filename)
+    ext = stem.suffix.lower()
+
+    # ── Try to decode as UTF-8 text ───────────────────────────────────────────
+    is_text = ext in _TEXT_EXTENSIONS
+    if not is_text:
+        # Heuristic: if the first 8 KB has no null bytes it's probably text.
+        sample = raw[:8192]
+        is_text = b"\x00" not in sample
+
+    new_filename = stem.stem + "_" + (stem.suffix.lstrip(".") or "file") + ".txt"
+
+    if is_text:
+        try:
+            text_content = raw.decode("utf-8", errors="replace")
+        except Exception:
+            text_content = raw.decode("latin-1", errors="replace")
+        header = f"# File: {filename}\n# (converted to plain text for upload)\n\n"
+        new_bytes = (header + text_content).encode("utf-8")
+        print(f"[coerce] {filename} → {new_filename} (text wrap)")
+    else:
+        # Binary: produce a hex dump (limit to 512 KB of source to keep it sane)
+        limit = 512 * 1024
+        truncated = raw[:limit]
+        lines: list[str] = []
+        for i in range(0, len(truncated), 16):
+            chunk = truncated[i : i + 16]
+            hex_part = " ".join(f"{b:02x}" for b in chunk)
+            asc_part = "".join(chr(b) if 32 <= b < 127 else "." for b in chunk)
+            lines.append(f"{i:08x}  {hex_part:<47}  |{asc_part}|")
+        if len(raw) > limit:
+            lines.append(f"... (truncated; original size {len(raw)} bytes)")
+        header = f"# File: {filename}\n# Binary hex dump (converted for upload)\n\n"
+        new_bytes = (header + "\n".join(lines)).encode("utf-8")
+        print(f"[coerce] {filename} → {new_filename} (hex dump, {len(raw)} bytes)")
+
+    return new_bytes, new_filename, "text/plain"
+
+
 # Matches @"/path/to/file" or @/path/to/file in user text
 _AT_FILE_RE = re.compile(r'@"([^"]+)"|@(\S+)')
 
@@ -255,17 +352,18 @@ def _get_thread_id(messages: List[Message], explicit: Optional[str]) -> tuple[st
 def _upload_file_to_uva(path: Path, thread_id: str, headers: dict[str, str]) -> None:
     media_type = mimetypes.guess_type(path.name)[0] or "application/octet-stream"
     raw = path.read_bytes()
+    raw, upload_name, media_type = _coerce_to_accepted(raw, path.name, media_type)
     resp = requests.post(
         f"{BASE_URL}/api/document/upload/stream",
         headers=headers,
-        files={"file": (path.name, raw, media_type)},
+        files={"file": (upload_name, raw, media_type)},
         data={"chatThreadId": thread_id, "chatState": "true"},
         timeout=60,
     )
     if resp.ok:
-        print(f"[upload] {path.name} ({len(raw)} bytes) → thread {thread_id[:8]}…")
+        print(f"[upload] {upload_name} ({len(raw)} bytes) → thread {thread_id[:8]}…")
     else:
-        print(f"[upload] warning: UvA returned {resp.status_code} for {path.name}")
+        print(f"[upload] warning: UvA returned {resp.status_code} for {upload_name}")
 
 
 def _upload_attachments(messages: List[Message], thread_id: str) -> None:
@@ -334,6 +432,7 @@ def _upload_attachments(messages: List[Message], thread_id: str) -> None:
 
         if raw:
             filename = f"attachment.{_ext_for(media_type)}"
+            raw, filename, media_type = _coerce_to_accepted(raw, filename, media_type)
             try:
                 resp = requests.post(
                     f"{BASE_URL}/api/document/upload/stream",
@@ -692,10 +791,13 @@ async def upload_file(
     # Strip Content-Type so requests sets the correct multipart boundary itself
     headers = {k: v for k, v in _uva_headers().items() if k.lower() != "content-type"}
 
+    media_type = file.content_type or mimetypes.guess_type(file.filename or "")[0] or "application/octet-stream"
+    content, upload_name, media_type = _coerce_to_accepted(content, file.filename or "upload", media_type)
+
     resp = requests.post(
         f"{BASE_URL}/api/document/upload/stream",
         headers=headers,
-        files={"file": (file.filename, content, file.content_type or "application/octet-stream")},
+        files={"file": (upload_name, content, media_type)},
         data={"chatThreadId": thread_id, "chatState": "true"},
         timeout=60,
     )
@@ -720,6 +822,7 @@ async def upload_file(
     return {
         "thread_id": thread_id,
         "filename": file.filename,
+        "uploaded_as": upload_name,
         "size": len(content),
         "uva_response": lines,
     }
