@@ -1,17 +1,17 @@
 # UvA AI Proxy
 
-An OpenAI-compatible API proxy for [aichat.uva.nl](https://aichat.uva.nl) — the University of Amsterdam's AI chat platform. It lets you connect any tool that speaks the OpenAI API (OpenWebUI, LibreChat, OpenClaude, CLI, Cursor, etc.) to UvA's AI models using your existing UvA session.
+An OpenAI-compatible API proxy for [aichat.uva.nl](https://aichat.uva.nl) — the University of Amsterdam's AI chat platform. It lets you connect any tool that speaks the OpenAI API (OpenWebUI, LibreChat, OpenClaude, Cursor, etc.) to UvA's AI models using your existing UvA session. Primarily tested with OpenClaude.
 
 ## Features
 
 - **OpenAI-compatible endpoints** — `GET /v1/models` and `POST /v1/chat/completions`
 - **Streaming & non-streaming** responses
 - **Persistent conversation threads** — follow-up messages continue in the same UvA chat instead of opening a new one
-- **Model alias resolution** — short names like `sonnet`, `haiku`, `gpt`, `mistral`, `oss`, etc. are mapped to full UvA model IDs automatically
+- **Model alias resolution** — short names like `sonnet`, `haiku`, `gpt`, `mistral`, `oss`, etc. are mapped to full UvA model IDs automatically (see [Model Aliases](#model-aliases))
 - **Actual model reporting** — the response reflects the model UvA actually ran, not just what was requested
 - **File uploads** — attach files with `@file.pdf` in OpenClaude; they are automatically uploaded to UvA and included in the conversation context
 - **Artifact saving** — when UvA generates a code file or document, it is automatically saved to your working directory
-- **Title-request interception** — OpenClaude's background title-generation requests are answered locally so they don't create extra UvA chats
+- **Title-request interception** — title-generation requests from OpenClaude are answered locally so they don't create extra UvA chats
 - **Multiple models** — All models that are available on the UvA AI Chat (as of now: GPT-5.1, Claude Haiku 4.5, Claude Sonnet 4.6, GPT-4.1, GPT-4o, GPT-5, GPT-5-mini, GPT-5-nano, GPT-OSS-120b, Mistral Large)
 - **CORS enabled** — browser-based tools can connect directly
 
@@ -33,7 +33,9 @@ pip install -r requirements.txt
 playwright install chromium
 ```
 ## Quickstart
-Start the session token extractor (opens browser window) and start the server.
+
+Start the session token extractor (opens a browser window) and start the server.
+
 ```bash
 bash ./start.sh
 ```
@@ -77,8 +79,23 @@ The server starts on `http://0.0.0.0:8000` by default.
 | `UVA_BASE_URL` | `https://aichat.uva.nl` | UvA API base URL |
 | `KNOWN_MODELS` | *(see below)* | Comma-separated list of models to expose |
 | `UPLOAD_DIR` | `uploads/` | Directory for locally stored uploaded files |
+| `USAGE_FILE` | `usage_stats.json` | Path to the JSON file where token usage stats are persisted |
 
 **Default models:** `gpt-5.1, claude-haiku-4.5, claude-sonnet-4.6, gpt-4.1, gpt-4o, gpt-5, gpt-5-mini, gpt-5-nano, gpt-oss-120b, mistral-large`
+
+## Model Aliases
+
+You can use short alias names instead of full model IDs:
+
+| Alias | Resolves to |
+|---|---|
+| `sonnet`, `claude-sonnet` | `claude-sonnet-4.6` |
+| `haiku`, `claude-haiku` | `claude-haiku-4.5` |
+| `gpt` | `gpt-5.1` |
+| `gpt-mini`, `mini` | `gpt-5-mini` |
+| `gpt-nano`, `nano` | `gpt-5-nano` |
+| `gpt-oss`, `oss` | `gpt-oss-120b` |
+| `mistral` | `mistral-large` |
 
 ## Connecting a Client
 
@@ -100,9 +117,9 @@ curl http://localhost:8000/v1/chat/completions \
   }'
 ```
 
-### Example: Claude Code CLI (via openclaude)
+### Example: OpenClaude
 
-Set the base URL to `http://localhost:8000` in your openclaude config. Then use it normally — file attachments with `@file.pdf` are uploaded automatically, and any code/document artifacts the model generates are saved directly to your working directory.
+Set the base URL to `http://localhost:8000` in your OpenClaude config. Then use it normally — file attachments with `@file.pdf` are uploaded automatically, and any code/document artifacts the model generates are saved directly to your working directory.
 
 ## File Uploads
 
@@ -115,6 +132,10 @@ Just reference a file with `@`:
 ```
 
 The proxy detects the path, uploads the file to UvA's document API, and includes it in the conversation context automatically.
+
+### Inline image / document blocks
+
+The proxy also handles base64-encoded content blocks in the OpenAI (`image_url` with a `data:` URI) and Anthropic (`image` / `document` with a `base64` source) message formats. These are uploaded to UvA automatically — no special syntax needed when using a client that sends them natively.
 
 ### Via the upload endpoint
 
@@ -137,36 +158,44 @@ python file_client.py list
 python file_client.py download report.pdf
 ```
 
+## Other Endpoints
+
+| Endpoint | Description |
+|---|---|
+| `GET /health` | Returns `{"status": "ok", "models": [...]}` — useful for liveness checks |
+| `GET /savings` | Returns estimated cost savings vs. commercial API pricing (see [Money Counter](#money-counter)) |
+| `GET /files` | Lists files in the upload directory |
+| `GET /download/{filename}` | Downloads a previously uploaded file |
+
 ## Artifact Saving
 
 When the model generates a file (e.g. you ask it to *"write a helloworld.py"*), the proxy intercepts the `create_artifact` event and saves the file directly to your current working directory. No manual copy-paste needed.
 
 ## Notes
 
-- `temperature` and `max_tokens` are accepted but ignored — setting the temperature is technically possible, but not implemented.
+- `temperature` and `max_tokens` are accepted but ignored.
 - Conversation thread state is kept in memory — restarting the server starts fresh threads.
 - Multi-turn history is injected into the system prompt since UvA's API only accepts single user turns.
 
 ## Money Counter
-To see how much money you saved using UvA AI,compared to online available prices.
 
-The Money Counter data is also accessible as JSON at `http://localhost:8000/savings`
-Alternatively you can add the following lines to the openclaude cli statusline.sh. : 
-```#!/usr/bin/env bash                                                                                                                                
-                                                                   
-  uva_result=$(curl -sf --max-time 1 http://localhost:8000/savings 2>/dev/null)
-  saved=$(echo "$uva_result" | jq -r '.total_saved_eur // empty' 2>/dev/null)                                                                        
-  if [ -n "$saved" ]; then                                                                                                                           
-      echo "You saved €$(printf '%.2f' "$saved") using UvA AI"                                                                                       
-  fi                                                                                                                                                 
+Track how much you would have spent if you'd used each model's commercial API instead of UvA's free portal.
+
+Savings data is available as JSON at `http://localhost:8000/savings`. You can also surface it in the OpenClaude status line by adding the following snippet to your `statusline.sh`:
+
+```bash
+#!/usr/bin/env bash
+
+uva_result=$(curl -sf --max-time 1 http://localhost:8000/savings 2>/dev/null)
+saved=$(echo "$uva_result" | jq -r '.total_saved_eur // empty' 2>/dev/null)
+if [ -n "$saved" ]; then
+    echo "You saved €$(printf '%.2f' "$saved") using UvA AI"
+fi
 ```
 
-More information on how to add parameters to your statusline can be found in the official documentation of Anthropic, under "Manually configure a status line".
+For instructions on adding entries to the status line, see the [Anthropic documentation — Manually configure a status line](https://code.claude.com/docs/en/statusline).
 
-. 
-`https://code.claude.com/docs/en/statusline`
-
-Please note that the savings are an estimate and should thus be taken with a grain of salt.
+> **Note:** Savings are an estimate based on public API pricing and should be taken with a grain of salt.
 
 ## License
 
