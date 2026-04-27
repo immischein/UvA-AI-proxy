@@ -23,18 +23,23 @@ An OpenAI-compatible API proxy for [aichat.uva.nl](https://aichat.uva.nl) — th
 ## Installation
 
 ```bash
+# Clone the repository
 git clone https://github.com/immischein/UvA-AI-proxy.git
 cd UvA-AI-proxy/
 
+# Create a Python virtual environment (venv)
 python3 -m venv .venv
+
+# Activate the virual environment
 source .venv/bin/activate      # Windows: .venv\Scripts\activate
 
+# Install the dependencies
 pip install -r requirements.txt
 playwright install chromium
 ```
 ## Quickstart
 
-Start the session token extractor (opens a browser window) and start the server.
+Start the session token extractor (opens a browser window) and start the server. Make sure that you are inside your Python venv.
 
 ```bash
 bash ./start.sh
