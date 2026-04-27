@@ -273,7 +273,7 @@ def _upload_attachments(messages: List[Message], thread_id: str) -> None:
     Scan the last user message for file attachments and upload them to UvA.
 
     Handles three formats:
-    - @"/path/to/file" or @/path/to/file text references (Claude Code style)
+    - @"/path/to/file" or @/path/to/file text references
     - OpenAI image_url blocks with data: URIs
     - Anthropic image/document blocks with base64 source
     """
@@ -285,14 +285,24 @@ def _upload_attachments(messages: List[Message], thread_id: str) -> None:
 
     content = last_user.content if isinstance(last_user.content, list) else []
 
-    # ── 1. @"path" references in text blocks ──────────────────────────────────
-    all_text = " ".join(
-        b.get("text", "") for b in content if b.get("type") == "text"
-    ) if content else (last_user.content if isinstance(last_user.content, str) else "")
+    # Build a single string from all text blocks (or the raw string content)
+    all_text = (
+        " ".join(b.get("text", "") for b in content if b.get("type") == "text")
+        if content
+        else (last_user.content if isinstance(last_user.content, str) else "")
+    )
+
+    # ── 1. @"path" or @path references ────────────────────────────────────────
+    cwd = _extract_cwd(messages)  # Claude Code's working directory
 
     for m in _AT_FILE_RE.finditer(all_text):
         filepath = m.group(1) or m.group(2)
         path = Path(filepath)
+
+        # Resolve relative paths against Claude Code's working directory
+        if not path.is_absolute():
+            path = cwd / path
+
         key = (thread_id, str(path))
         if path.is_file() and key not in _already_uploaded:
             _already_uploaded.add(key)
@@ -300,6 +310,8 @@ def _upload_attachments(messages: List[Message], thread_id: str) -> None:
                 _upload_file_to_uva(path, thread_id, headers)
             except Exception as exc:
                 print(f"[upload] warning: {path.name}: {exc}")
+        elif not path.is_file():
+            print(f"[upload] warning: file not found: {path}")
 
     # ── 2. Base64 content blocks (OpenAI / Anthropic format) ──────────────────
     for block in content:
@@ -339,9 +351,10 @@ def _upload_attachments(messages: List[Message], thread_id: str) -> None:
 
 
 _ARTIFACT_INSTRUCTION = (
-    "Whenever you produce a file — code, scripts, documents, data, configurations, "
+    "Whenever you create, generate, or save a file — code, scripts, documents, data, configurations, "
     "or any other written output meant to be saved — always use the artifact creation "
-    "feature (create_artifact) so the file is automatically downloaded to the user's machine."
+    "feature (create_artifact) so the file is automatically downloaded to the user's machine. "
+    "The name of the artifact should be identical to the name of the file being created."
 )
 
 
