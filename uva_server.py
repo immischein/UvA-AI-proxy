@@ -450,11 +450,34 @@ def _upload_attachments(messages: List[Message], thread_id: str) -> None:
 
 
 _ARTIFACT_INSTRUCTION = (
-    "Whenever you create, generate, or save a file — code, scripts, documents, data, configurations, "
-    "or any other written output meant to be saved — always use the artifact creation "
-    "feature (create_artifact) so the file is automatically downloaded to the user's machine. "
-    "The name of the artifact should be identical to the name of the file being created."
+    "Whenever you create, generate, save, edit, improve, fix, refactor, translate, rewrite, or otherwise "
+    "modify a file — code, scripts, documents, data, configurations, or any other written output meant "
+    "to be saved — always use the artifact creation feature (create_artifact) so the file is "
+    "automatically downloaded to the user's machine. "
+    "The name of the artifact must be identical to the name of the original file being edited, "
+    "or the intended filename when creating a new file. "
+    "Always output the full, complete file content in the artifact — never partial diffs or snippets."
 )
+
+# Keywords that indicate the user wants to create/save a file.
+# When any of these appear in the user message, the artifact instruction is
+# prepended to the message so the model sees it even if UvA ignores the
+# systemPrompt override.
+_FILE_CREATION_KEYWORDS = (
+    # creation
+    "create", "write", "generate", "save", "make", "produce", "output",
+    "export", "build", "draft", "store",
+    # editing / improvement
+    "edit", "improve", "fix", "refactor", "rewrite", "update", "modify",
+    "change", "correct", "translate", "convert", "format", "clean",
+    "revise", "enhance", "optimise", "optimize",
+)
+
+
+def _wants_file_creation(text: str) -> bool:
+    """Return True if the user message appears to request creating/saving a file."""
+    lower = text.lower()
+    return any(kw in lower for kw in _FILE_CREATION_KEYWORDS)
 
 
 def _build_system_prompt(messages: List[Message]) -> tuple[Optional[str], str]:
@@ -462,6 +485,10 @@ def _build_system_prompt(messages: List[Message]) -> tuple[Optional[str], str]:
     Returns (system_prompt, last_user_text).
     Folds the system message and prior conversation history into a single system
     prompt, and extracts the final user message to send to UvA.
+
+    Note: UvA's API ignores the systemPrompt override. As a fallback, the
+    artifact instruction is also injected directly into the user message whenever
+    the request looks like a file-creation task.
     """
     system_parts: List[str] = []
     history: List[Message] = []
@@ -490,6 +517,12 @@ def _build_system_prompt(messages: List[Message]) -> tuple[Optional[str], str]:
 
     system_parts.append(_ARTIFACT_INSTRUCTION)
     combined_system = "\n\n".join(system_parts) if system_parts else None
+
+    # Inject the artifact instruction directly into the user message as a
+    # fallback, in case UvA ignores the systemPrompt override.
+    if _wants_file_creation(last_user_text):
+        last_user_text = f"[Instruction: {_ARTIFACT_INSTRUCTION}]\n\n{last_user_text}"
+
     return combined_system, last_user_text
 
 
